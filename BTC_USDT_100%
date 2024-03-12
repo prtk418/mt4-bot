@@ -1,0 +1,148 @@
+//BTCUSDT_Binance_Final 
+
+//@version=4
+
+strategy("Supertrend MTF Heikin Ashi", overlay = true,pyramiding=1,
+     default_qty_type = strategy.percent_of_equity)
+
+mode =input(title = "HTF Method", defval = 'User Defined', options=['Auto', 'User Defined'])
+//auto higher time frame
+
+HTFo =timeframe.period == '1' ? '5' : 
+  timeframe.period == '3' ? '15' : 
+  timeframe.period == '5' ? '15' : 
+  timeframe.period == '15' ? '60' : 
+  timeframe.period == '30' ? '120' : 
+  timeframe.period == '45' ? '120' : 
+  timeframe.period == '60' ? '240' : 
+  timeframe.period == '120' ? '240' : 
+  timeframe.period == '180' ? '240' : 
+  timeframe.period == '240' ? 'D' : 
+  timeframe.period == 'D' ? 'W' :
+  timeframe.period == 'W' ? '5W' :
+  'D'
+  
+HTFm = input('240', title = "Time Frame (if HTF Method=User Defined)", type=input.resolution)
+HTF = mode == 'Auto' ? HTFo : HTFm
+
+
+
+Mult = input(defval = 1.5, title = "ATR Factor", minval = 0.5, maxval = 100, step = 0.1)
+Period = input(defval = 10, title = "ATR Period", minval = 1,maxval = 100)
+Mult_HTP = input(defval = 2.0, title = "ATR High Factor", minval = 0.5, maxval = 100, step = 0.1)
+Period_HTP = input(defval = 14, title = "ATR High Period", minval = 1,maxval = 100)
+
+// current time frame
+
+//Heikin Ashi high, low, close
+h = security(heikinashi(syminfo.tickerid), timeframe.period, high)
+l = security(heikinashi(syminfo.tickerid), timeframe.period, low)
+c = security(heikinashi(syminfo.tickerid), timeframe.period, close)
+
+//HeikinAshi atr
+Atr = security(heikinashi(syminfo.tickerid), timeframe.period, atr(Period))
+
+Up = (h + l) / 2 - (Mult * Atr)
+Dn = (h + l) / 2 + (Mult * Atr)
+
+float TUp = na
+float TDown = na
+Trend = 0
+
+TUp := c[1] > TUp[1] ? max(Up,TUp[1]) : Up
+TDown := c[1] < TDown[1] ? min(Dn,TDown[1]) : Dn
+Trend := c > TDown[1] ? 1: c < TUp[1]? -1: nz(Trend[1],1)
+Trailingsl = Trend == 1 ? TUp : TDown
+
+linecolor = Trend == 1 and nz(Trend[1]) == 1 ? color.lime : Trend == -1 and nz(Trend[1]) == -1 ? color.red : na
+plot(Trailingsl, color = linecolor ,  linewidth = 2, title = "SuperTrend")
+
+// Higher Time Frame
+
+////// HTF high, low, close
+highhtf = security(heikinashi(syminfo.tickerid), HTF, high[1], lookahead = barmerge.lookahead_on)
+lowhtf = security(heikinashi(syminfo.tickerid), HTF, low[1], lookahead = barmerge.lookahead_on)
+closehtf = security(heikinashi(syminfo.tickerid), HTF, close[1], lookahead = barmerge.lookahead_on)
+
+// ATR for HTF
+HTfatr = security(heikinashi(syminfo.tickerid), HTF, atr(Period_HTP)[1], lookahead = barmerge.lookahead_on)
+
+Uphtf = abs(highhtf + lowhtf) / 2 - (Mult_HTP * HTfatr)
+Dnhtf = abs(highhtf + lowhtf) / 2 + (Mult_HTP * HTfatr)
+
+float TUphtf = na
+float TDownhtf = na
+TrendHtf = 0
+
+TUphtf := closehtf[1] > TUphtf[1] ? max(Uphtf, TUphtf[1]) : Uphtf
+TDownhtf := closehtf[1] < TDownhtf[1] ? min(Dnhtf,TDownhtf[1]) : Dnhtf
+TrendHtf := closehtf > TDownhtf[1] ? 1 : closehtf < TUphtf[1] ? -1: nz(TrendHtf[1], 1)
+TrailingslHtf = TrendHtf == 1 ? TUphtf : TDownhtf
+
+linecolorHtf = TrendHtf == 1 and nz(TrendHtf[1]) == 1 ? color.blue : TrendHtf == -1 and nz(TrendHtf[1]) == -1 ? color.red : na
+st = plot(TrailingslHtf, color = linecolorHtf ,  linewidth = 3, title = "Supertrend HTF")
+
+plot(TrendHtf == 1 and TrendHtf[1] == -1 ? TrailingslHtf : na, title="Supertrend HTF Trend Up", linewidth = 4, color=color.blue, style = plot.style_circles)
+plot(TrendHtf == -1 and TrendHtf[1] == 1 ? TrailingslHtf : na, title="Supertrend HTF Trend Down", linewidth = 4, color=color.red, style = plot.style_circles)
+
+
+adxLength = input(defval = 10, title = "ADX Period", minval = 1, maxval = 100)
+
+// ADX calculations
+TR = tr
+plusDM = high - high[1]
+minusDM = low[1] - low
+TruePlusDM = plusDM > minusDM and plusDM > 0 ? plusDM : 0
+TrueMinusDM = minusDM > plusDM and minusDM > 0 ? minusDM : 0
+smoothedTrueRange = ema(TR, adxLength)
+smoothedTruePlusDM = ema(TruePlusDM, adxLength)
+smoothedTrueMinusDM = ema(TrueMinusDM, adxLength)
+plusDI = 100 * smoothedTruePlusDM / smoothedTrueRange
+minusDI = 100 * smoothedTrueMinusDM / smoothedTrueRange
+DX = 100 * abs(plusDI - minusDI) / (plusDI + minusDI)
+ADX = ema(DX, adxLength)
+
+rsiPeriod = input(100, title="RSI Period", minval=1)
+rsi = rsi(close, rsiPeriod)
+
+
+emaPeriod = input(10, title="EMA volatility Period")
+src = close
+
+// Manually calculate the EMA
+alpha = 2.0 / (emaPeriod + 1.0)
+emaPrice = 0.0
+emaPrice := na(emaPrice[1]) ? src : alpha * src + (1 - alpha) * emaPrice[1]
+
+// Calculate the absolute difference between the current price and its EMA
+volatility = abs(src - emaPrice)
+
+// Optionally, plot the EMA of the volatility for smoother visualization
+alphaVolatility = 2.0 / (emaPeriod + 1.0)
+emaVolatility = 0.0
+emaVolatility := na(emaVolatility[1]) ? volatility : alphaVolatility * volatility + (1 - alphaVolatility) * emaVolatility[1]
+
+plot(volatility, color=color.red, title="Volatility", linewidth=1)
+plot(emaVolatility, color=color.blue, title="EMA of Volatility", linewidth=1)
+
+length = input(10, title="Highs/Lows Consolidation")
+highestHigh = highest(h, length)
+lowestLow = lowest(l, length)
+
+//inRectangle = (highestHigh == highest(high, length * 4)) and (lowestLow == lowest(low, length * 2))
+//plot(inRectangle ? highestHigh : na, title="Top of Rectangle", color=color.red, linewidth=1)
+//plot(inRectangle ? lowestLow : na, title="Bottom of Rectangle", color=color.green, linewidth=1)
+
+if (Trend == 1 and Trend[1] == -1 and (rsi > 45) and ADX > ADX[1])
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Long Stop Loss", "Long", stop=(((close*0.9866)+lowestLow)/2),limit=close*1.3)
+        
+if (Trend == -1 and Trend[1] == 1 and (rsi < 55) and ADX > ADX[1]) 
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Short Stop Loss", "Short", stop=(((close*1.015)+highestHigh)/2),limit=close*0.7)
+    
+if (TrendHtf == -1 and TrendHtf[1] == 1)
+    strategy.close("Long")
+
+if (TrendHtf == 1 and TrendHtf[1] == -1)
+    strategy.close("Short")
