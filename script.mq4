@@ -217,17 +217,6 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
-//| CalculateSupertrend function                                     |
-//+------------------------------------------------------------------+
-void CalculateSupertrend()
-{
-    // Placeholder for the Supertrend calculation logic
-    // This should be replaced with the actual calculation based on Heiken Ashi and ATR
-    // Example:
-    // trend = ...; // 1 for uptrend, -1 for downtrend, 0 for no trend
-}
-
-//+------------------------------------------------------------------+
 //| OpenBuyOrder function                                            |
 //+------------------------------------------------------------------+
 void OpenBuyOrder()
