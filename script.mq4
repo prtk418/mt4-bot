@@ -181,6 +181,9 @@ void CalculateSupertrend()
 void OnTick()
 {
     // Calculate the Supertrend & SupertrendX for the latest data
+    
+    CalculateHeikenAshi();
+    CalculateHeikenAshiX();
     CalculateSupertrend();
     CalculateSupertrendX();
 
