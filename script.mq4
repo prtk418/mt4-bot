@@ -58,6 +58,11 @@ int OnInit()
    
    total1HBars = iBars(NULL, PERIOD_H1);
    total4HBars = iBars(NULL, PERIOD_H4);
+   
+   Print("MODE_LOTSIZE = ", MarketInfo(Symbol(), MODE_LOTSIZE));
+Print("MODE_MINLOT = ", MarketInfo(Symbol(), MODE_MINLOT));
+Print("MODE_LOTSTEP = ", MarketInfo(Symbol(), MODE_LOTSTEP));
+Print("MODE_MAXLOT = ", MarketInfo(Symbol(), MODE_MAXLOT));
   
    return(INIT_SUCCEEDED);
    
@@ -168,8 +173,8 @@ void CalculateSupertrend()
   //+------------------------------------------------------------------+
   void CalculateSupertrendX()
     {
-     ArrayResize(upperBand, total4HBars);
-     ArrayResize(lowerBand, total4HBars);
+     ArrayResize(upperBandX, total4HBars);
+     ArrayResize(lowerBandX, total4HBars);
      ArrayResize(trendX, total4HBars);
      for(int i = 0; i < total4HBars; i++)
        {
@@ -251,6 +256,8 @@ void OpenBuyOrder()
       Print("Not enough equity");
       return;
     }
+    
+    Print("Check lotSize here - ", lotSize);
 
     int ticket = OrderSend(Symbol(), OP_BUY, lotSize, Ask, 2, 0, 0, "Supertrend Buy", 0, 0, clrGreen);
     if(ticket < 0)
@@ -272,6 +279,8 @@ void OpenSellOrder()
       Print("Not enough equity");
       return;
     }
+    
+    Print("Check lotSize here - ", lotSize);
 
     int ticket = OrderSend(Symbol(), OP_SELL, lotSize, Bid, 2, 0, 0, "Supertrend Sell", 0, 0, clrRed);
     if(ticket < 0)
