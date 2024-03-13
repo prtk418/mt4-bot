@@ -24,6 +24,8 @@ double trend[];
 double upperBandX[];
 double lowerBandX[];
 double trendX[];
+int total1HBars;
+int total4HBars;
 
 double lastTrend = 0;
 double lastTrendX = 0;
@@ -53,6 +55,9 @@ int OnInit()
    ArraySetAsSeries(haCloseX, true);
    ArraySetAsSeries(haHighX, true);
    ArraySetAsSeries(haLowX, true);
+   
+   total1HBars = iBars(NULL, PERIOD_H1);
+   total4HBars = iBars(NULL, PERIOD_H4);
   
    return(INIT_SUCCEEDED);
    
@@ -61,8 +66,11 @@ int OnInit()
 
 void CalculateHeikenAshi()
   {
-   int totalBars = iBars(NULL, PERIOD_H1); //H1 means 1 hour
-   for(int i = 0; i < totalBars; i++)
+   ArrayResize(haOpen, total1HBars);
+   ArrayResize(haClose, total1HBars);
+   ArrayResize(haHigh, total1HBars);
+   ArrayResize(haLow, total1HBars);
+   for(int i = 0; i < total1HBars; i++)
      {
       double open = iOpen(NULL, PERIOD_H1, i);
       double close = iClose(NULL, PERIOD_H1, i);
@@ -88,13 +96,16 @@ void CalculateHeikenAshi()
 
 void CalculateHeikenAshiX()
   {
-   int totalBars = iBars(NULL, PERIOD_H4); // H4 means 4 hours 
-   for(int i = 0; i < totalBars; i++)
+   ArrayResize(haOpenX, total4HBars);
+   ArrayResize(haCloseX, total4HBars);
+   ArrayResize(haHighX, total4HBars);
+   ArrayResize(haLowX, total4HBars); 
+   for(int i = 0; i < total4HBars; i++)
      {
-      double open = iOpen(NULL, PERIOD_H1, i);
-      double close = iClose(NULL, PERIOD_H1, i);
-      double high = iHigh(NULL, PERIOD_H1, i);
-      double low = iLow(NULL, PERIOD_H1, i);
+      double open = iOpen(NULL, PERIOD_H4, i);
+      double close = iClose(NULL, PERIOD_H4, i);
+      double high = iHigh(NULL, PERIOD_H4, i);
+      double low = iLow(NULL, PERIOD_H4, i);
       
       if(i == 0)
         {
@@ -120,10 +131,17 @@ void CalculateHeikenAshiX()
 //+------------------------------------------------------------------+
 void CalculateSupertrend()
   {
-   int totalBars = iBars(NULL, PERIOD_H1);
-   for(int i = 0; i < totalBars; i++)
+   ArrayResize(upperBand, total1HBars);
+   ArrayResize(lowerBand, total1HBars);
+   ArrayResize(trend, total1HBars);
+   for(int i = 0; i < total1HBars; i++)
      {
       double atr = iATR(NULL, PERIOD_H1, ATRPeriod, i);
+      
+      double open = iOpen(NULL, PERIOD_H1, i);
+      double close = iClose(NULL, PERIOD_H1, i);
+      double high = iHigh(NULL, PERIOD_H1, i);
+      double low = iLow(NULL, PERIOD_H1, i);
 
       // Example calculation logic for upper and lower bands
       // This is simplified and needs to be adapted based on the Supertrend formula
@@ -150,10 +168,17 @@ void CalculateSupertrend()
   //+------------------------------------------------------------------+
   void CalculateSupertrendX()
     {
-     int totalBars = iBars(NULL, PERIOD_H4);
-     for(int i = 0; i < totalBars; i++)
+     ArrayResize(upperBand, total4HBars);
+     ArrayResize(lowerBand, total4HBars);
+     ArrayResize(trendX, total4HBars);
+     for(int i = 0; i < total4HBars; i++)
        {
         double atr = iATR(NULL, PERIOD_H4, ATRPeriodX, i);
+        
+        double open = iOpen(NULL, PERIOD_H4, i);
+        double close = iClose(NULL, PERIOD_H4, i);
+        double high = iHigh(NULL, PERIOD_H4, i);
+        double low = iLow(NULL, PERIOD_H4, i);
 
         // Example calculation logic for upper and lower bands
         // This is simplified and needs to be adapted based on the Supertrend formula
@@ -188,32 +213,29 @@ void OnTick()
     CalculateSupertrendX();
 
     // Check for trend changes to decide on trading actions
-    if(trend == 1 && lastTrend <= 0)
+    if(trend[total1HBars-1] == 1 && trend[total1HBars-2] <= 0)
     {
         CloseSellPositions();
         OpenBuyOrder();
     }
-    else if(trend == -1 && lastTrend >= 0)
+    else if(trend[total1HBars-1] == -1 && trend[total1HBars-2] >= 0)
     {
         CloseBuyPositions();
         OpenSellOrder();
     }
     
-    if(trendX == 1 && lastTrendX <= 0)
+    if(trendX[total4HBars-1] == 1 && trendX[total4HBars-2] <= 0)
     
     {
         CloseSellPositions();
     }
     
-    else if(trendX == -1 && lastTrendX >= 0)
+    else if(trendX[total4HBars-1] == -1 && trendX[total4HBars-2] >= 0)
     
     {    
         CloseBuyPositions();
       
     }
-    
-    lastTrend = trend; // Update last trend after actions
-    lastTrendX = trendX; // Update last trend after actions
 }
 
 //+------------------------------------------------------------------+
@@ -224,7 +246,13 @@ void OpenBuyOrder()
     if(OrderSelect(0, SELECT_BY_POS) && OrderType() == OP_BUY)
         return; // Already have a buy order
 
-    int ticket = OrderSend(Symbol(), OP_BUY, LotSize, Ask, 2, 0, 0, "Supertrend Buy", 0, 0, clrGreen);
+    double lotSize = AccountFreeMarginCheck(Symbol(), OP_BUY, 1.0);
+    if (lotSize <= 0) {
+      Print("Not enough equity");
+      return;
+    }
+
+    int ticket = OrderSend(Symbol(), OP_BUY, lotSize, Ask, 2, 0, 0, "Supertrend Buy", 0, 0, clrGreen);
     if(ticket < 0)
         Print("Error opening BUY order: ", GetLastError());
     else
@@ -239,7 +267,13 @@ void OpenSellOrder()
     if(OrderSelect(0, SELECT_BY_POS) && OrderType() == OP_SELL)
         return; // Already have a sell order
 
-    int ticket = OrderSend(Symbol(), OP_SELL, LotSize, Bid, 2, 0, 0, "Supertrend Sell", 0, 0, clrRed);
+    double lotSize = AccountFreeMarginCheck(Symbol(), OP_SELL, 1.0);
+    if (lotSize <= 0) {
+      Print("Not enough equity");
+      return;
+    }
+
+    int ticket = OrderSend(Symbol(), OP_SELL, lotSize, Bid, 2, 0, 0, "Supertrend Sell", 0, 0, clrRed);
     if(ticket < 0)
         Print("Error opening SELL order: ", GetLastError());
     else
